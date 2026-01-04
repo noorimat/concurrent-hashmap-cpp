@@ -13,5 +13,7 @@ target_include_directories(lockfree_hashmap INTERFACE include)
 add_executable(demo src/main.cpp)
 target_link_libraries(demo lockfree_hashmap pthread)
 
-# Tests (we'll add Google Test later)
+# Stress test executable
+add_executable(stress_test src/stress_test.cpp)
+target_link_libraries(stress_test lockfree_hashmap pthread)
 # enable_testing()

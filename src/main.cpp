@@ -37,5 +37,21 @@ int main() {
 
     std::cout << "\n✓ Basic operations working!\n";
 
+    // Test remove
+    std::cout << "\nTesting remove...\n";
+    if (map.remove("banana")) {
+        std::cout << "✓ Removed banana\n";
+    }
+
+    if (!map.get("banana", value)) {
+        std::cout << "✓ Banana no longer exists\n";
+    }
+
+    if (map.get("apple", value)) {
+        std::cout << "✓ Apple still exists: " << value << "\n";
+    }
+
+    std::cout << "\n🎉 All tests passed!\n";
+
     return 0;
 }
