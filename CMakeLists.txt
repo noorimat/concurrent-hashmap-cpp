@@ -16,4 +16,10 @@ target_link_libraries(demo lockfree_hashmap pthread)
 # Stress test executable
 add_executable(stress_test src/stress_test.cpp)
 target_link_libraries(stress_test lockfree_hashmap pthread)
+
+# Performance benchmark
+add_executable(benchmark benchmarks/performance_benchmark.cpp)
+target_link_libraries(benchmark lockfree_hashmap pthread)
+
+# Tests (we'll add Google Test later)
 # enable_testing()
