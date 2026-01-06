@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include "hazard_pointer.hpp"
 
 template<typename K, typename V>
 class LockFreeHashMap {
@@ -20,6 +21,9 @@ private:
     std::vector<std::atomic<Node*>> buckets;
     size_t capacity;
     std::hash<K> hasher;
+
+    // Hazard pointer manager for safe memory reclamation
+    HazardPointerManager<Node> hp_manager;
 
     size_t get_bucket_index(const K& key) const {
         return hasher(key) % capacity;
@@ -49,10 +53,16 @@ public:
         size_t index = get_bucket_index(key);
         Node* new_node = new Node(key, value);
 
-        // Lock-free insert using Compare-And-Swap (CAS)
         while (true) {
-            // Load current head
             Node* head = buckets[index].load(std::memory_order_acquire);
+
+            // Protect head with hazard pointer
+            auto guard = hp_manager.make_guard(0, head);
+
+            // Verify head hasn't changed
+            if (head != buckets[index].load(std::memory_order_acquire)) {
+                continue; // Head changed, retry
+            }
 
             // Check if key already exists
             Node* current = head;
@@ -60,41 +70,59 @@ public:
                 if (current->key == key) {
                     // Key exists, update value
                     current->value = value;
-                    delete new_node; // Don't leak memory
-                    return false; // Indicate key already existed
+                    delete new_node;
+                    return false;
                 }
-                current = current->next.load(std::memory_order_acquire);
+
+                Node* next = current->next.load(std::memory_order_acquire);
+                current = next;
             }
 
             // Point new node to current head
             new_node->next.store(head, std::memory_order_relaxed);
 
-            // Try to atomically swap new node as the new head
-            // If head hasn't changed, this succeeds
-            // If another thread changed head, we retry
+            // Try to atomically swap
             if (buckets[index].compare_exchange_weak(
                     head, new_node,
                     std::memory_order_release,
                     std::memory_order_acquire)) {
-                return true; // Successfully inserted
+                return true;
             }
-            // CAS failed, another thread modified the list
-            // Loop will retry with updated head
         }
     }
 
     bool get(const K& key, V& value) const {
         size_t index = get_bucket_index(key);
-        Node* current = buckets[index].load(std::memory_order_acquire);
 
-        while (current != nullptr) {
-            if (current->key == key) {
-                value = current->value;
-                return true;
+        while (true) {
+            Node* current = buckets[index].load(std::memory_order_acquire);
+
+            // Protect current node with hazard pointer
+            const_cast<HazardPointerManager<Node>&>(hp_manager).acquire(0, current);
+
+            // Verify current is still valid
+            if (current != buckets[index].load(std::memory_order_acquire)) {
+                continue; // List changed, retry
             }
-            current = current->next.load(std::memory_order_acquire);
+
+            while (current != nullptr) {
+                if (current->key == key) {
+                    value = current->value;
+                    const_cast<HazardPointerManager<Node>&>(hp_manager).release(0);
+                    return true;
+                }
+
+                Node* next = current->next.load(std::memory_order_acquire);
+
+                // Update hazard pointer to next node
+                const_cast<HazardPointerManager<Node>&>(hp_manager).acquire(0, next);
+
+                current = next;
+            }
+
+            const_cast<HazardPointerManager<Node>&>(hp_manager).release(0);
+            return false;
         }
-        return false;
     }
 
     bool remove(const K& key) {
@@ -102,6 +130,15 @@ public:
 
         while (true) {
             Node* head = buckets[index].load(std::memory_order_acquire);
+
+            // Protect head with hazard pointer
+            auto guard = hp_manager.make_guard(0, head);
+
+            // Verify head hasn't changed
+            if (head != buckets[index].load(std::memory_order_acquire)) {
+                continue;
+            }
+
             Node* current = head;
             Node* prev = nullptr;
 
@@ -116,10 +153,8 @@ public:
                                 head, next,
                                 std::memory_order_release,
                                 std::memory_order_acquire)) {
-                            // Successfully removed head
-                            // WARNING: We're leaking memory here for now
-                            // We'll fix this with hazard pointers later
-                            // delete current; // UNSAFE in lock-free context!
+                            // Successfully removed head - retire node safely
+                            hp_manager.retire(current);
                             return true;
                         }
                         // CAS failed, retry
@@ -131,9 +166,8 @@ public:
                                 current, next,
                                 std::memory_order_release,
                                 std::memory_order_acquire)) {
-                            // Successfully removed
-                            // WARNING: Memory leak here too
-                            // delete current; // UNSAFE!
+                            // Successfully removed - retire node safely
+                            hp_manager.retire(current);
                             return true;
                         }
                         // CAS failed, retry
@@ -148,7 +182,6 @@ public:
             if (current == nullptr) {
                 return false;
             }
-            // If we got here, CAS failed, retry the whole operation
         }
     }
 

@@ -21,5 +21,8 @@ target_link_libraries(stress_test lockfree_hashmap pthread)
 add_executable(benchmark benchmarks/performance_benchmark.cpp)
 target_link_libraries(benchmark lockfree_hashmap pthread)
 
+# Memory reclamation test
+add_executable(memory_test src/memory_test.cpp)
+target_link_libraries(memory_test lockfree_hashmap pthread)
 # Tests (we'll add Google Test later)
 # enable_testing()
