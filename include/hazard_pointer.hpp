@@ -87,11 +87,12 @@ public:
     }
 
     ~HazardPointerManager() {
-        // Clean up any remaining retired nodes
+        // Don't delete retired nodes in destructor
+        // They should either still be in the data structure (and will be deleted there)
+        // or have been safely reclaimed already
+        // Just clear the lists to avoid double-free
         for (auto& retired_list : retired_lists) {
-            for (auto& node : retired_list) {
-                delete node.ptr;
-            }
+            retired_list.clear();
         }
     }
 

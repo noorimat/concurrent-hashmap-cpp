@@ -26,3 +26,6 @@ add_executable(memory_test src/memory_test.cpp)
 target_link_libraries(memory_test lockfree_hashmap pthread)
 # Tests (we'll add Google Test later)
 # enable_testing()
+# Sanitizer test
+add_executable(sanitizer_test src/sanitizer_test.cpp)
+target_link_libraries(sanitizer_test lockfree_hashmap pthread)
