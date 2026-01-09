@@ -1,0 +1,1 @@
+/usr/bin/c++ -fsanitize=address -g -pthread -O2 -Wall -Wextra -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/stress_test.dir/src/stress_test.cpp.o -o stress_test  -lpthread

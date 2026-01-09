@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/noorimat/IdeaProjects/concurrent-hashmap-cpp/build-sanitizer/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
