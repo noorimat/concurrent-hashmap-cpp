@@ -21,6 +21,16 @@ Benchmark results comparing against `std::unordered_map` with mutex protection (
 | Read-Heavy (80/20) | 15.46 ms | 37.71 ms | **2.44x** |
 | Mixed (50/50) | 32.67 ms | 70.46 ms | **2.16x** |
 
+### Performance Visualization
+
+![Performance Scaling](performance_scaling.png)
+
+*Figure 1: Performance comparison across different workloads and thread counts. Lock-free implementation shows excellent scalability.*
+
+![Speedup Comparison](speedup_comparison.png)
+
+*Figure 2: Speedup multiplier vs mutex-based implementation. Higher is better.*
+
 ### Key Insights
 
 - **Exceptional Scalability**: Nearly linear scaling with thread count for reads and inserts
